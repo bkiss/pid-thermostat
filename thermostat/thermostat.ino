@@ -103,14 +103,14 @@ void updateOutput() {
     currentWindowPidOutput = pidOutput;
   }
   
-  Serial.print("Window Size: ");
-  Serial.print(windowSize);
+ // Serial.print("Window Size: ");
+ // Serial.print(windowSize);
 //
-  Serial.print(" Window elapsed: ");
-  Serial.print((now - windowStartTime) * 100);
+//  Serial.print(" Window elapsed: ");
+//  Serial.print((now - windowStartTime) * 100);
 //  
-  Serial.print(" Div: ");
-  Serial.println((now - windowStartTime) * 100 / windowSize);
+ // Serial.print(" Div: ");
+//  Serial.println((now - windowStartTime) * 100 / windowSize);
   
   if(currentWindowPidOutput * windowSize > ((now - windowStartTime) * 100)) {
     if(!heaterOn){
