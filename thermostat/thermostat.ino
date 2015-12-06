@@ -24,7 +24,7 @@ unsigned char OFF_CODES[3] = {0x7, 0x5, 0x2};
 double KP=45;    // 2.2 degrees out = 100% heating
 double KI=0.05;  // 3% per degree per minute
 double KD=0;     // Not yet used
-unsigned long windowSize = 120000; // 20 minutes (ish)
+unsigned long windowSize = 1200000; // 20 minutes (ish)
 
 // State
 int i;
@@ -103,28 +103,28 @@ void updateOutput() {
     currentWindowPidOutput = pidOutput;
   }
   
-//  Serial.print("Window Size: ");
-//  Serial.print(windowSize);
+  Serial.print("Window Size: ");
+  Serial.print(windowSize);
 //
-//  Serial.print(" Window elapsed: ");
-//  Serial.print((now - windowStartTime) * 100);
+  Serial.print(" Window elapsed: ");
+  Serial.print((now - windowStartTime) * 100);
 //  
-//  Serial.print(" Div: ");
-//  Serial.println((now - windowStartTime) * 100 / windowSize);
+  Serial.print(" Div: ");
+  Serial.println((now - windowStartTime) * 100 / windowSize);
   
   if(currentWindowPidOutput * windowSize > ((now - windowStartTime) * 100)) {
     if(!heaterOn){
       heaterOn = true;
       Serial.println("ON");
       setHeaterState(true);
-       digitalWrite(relay, HIGH);
+       //digitalWrite(relay, HIGH);
     }
   }
   else if(heaterOn) {
     heaterOn = false;
     Serial.println("OFF");
     setHeaterState(false);
-     digitalWrite(relay, LOW);
+     //digitalWrite(relay, LOW);
   }
   
   // Every 400 cycles (about 8 seconds) refresh the heater state
@@ -134,7 +134,8 @@ void updateOutput() {
 }
 
 void setHeaterState(boolean on) {
-  long code = WATTS_CLEVER_DEVICE_ID + (on ? ON_CODES[1] : OFF_CODES[1]);
+  digitalWrite(relay, on ? HIGH:LOW);
+  //long code = WATTS_CLEVER_DEVICE_ID + (on ? ON_CODES[1] : OFF_CODES[1]);
   //sendCode(code);
 }
 
