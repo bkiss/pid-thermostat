@@ -1,15 +1,20 @@
+#include <DHT.h>
+
 #include <math.h>
 #include <Wire.h>
-#include "rgb_lcd.h"
 #include <PID_v1.h>
-#include <RCSwitch.h>
-#include <IRremote.h>
+
+
+#define DHTPIN 2 
+#define DHTTYPE DHT22
+
+DHT dht(DHTPIN, DHTTYPE);
 
 // Constants
-int TEMP_SENSOR_PIN = 0;
-int IR_RX_PIN = 7;
-int RF_TX_PIN  = 2;
-int B = 3975;                  // B value of the thermistor
+
+//int B = 3975;                  // B value of the thermistor
+
+int relay= 4;
 
 unsigned long WATTS_CLEVER_DEVICE_ID = 0x62E650;
 unsigned char ON_CODES[3] = {0xF,0xD,0xA};
@@ -19,52 +24,37 @@ unsigned char OFF_CODES[3] = {0x7, 0x5, 0x2};
 double KP=45;    // 2.2 degrees out = 100% heating
 double KI=0.05;  // 3% per degree per minute
 double KD=0;     // Not yet used
-unsigned long windowSize = 1200000; // 20 minutes (ish)
+unsigned long windowSize = 120000; // 20 minutes (ish)
 
 // State
 int i;
-double setPoint = 19.0;
+double setPoint = 22.0;
 double temperature, pidOutput, currentWindowPidOutput = 0;
 unsigned long windowStartTime;
 boolean heaterOn = false;
-decode_results irSignal;
-int screen = 0;
 
 // Objects
-rgb_lcd lcd;
+
 PID myPID(&temperature, &pidOutput, &setPoint, KP, KI, KD, DIRECT);
-RCSwitch mySwitch = RCSwitch();
-IRrecv irrecv(IR_RX_PIN);
 
 void setup() {
+ 
   Serial.begin(9600);  
-  lcd.begin(16, 2);
-  irrecv.enableIRIn();
-  
+   
   windowStartTime = millis();
   
   myPID.SetMode(AUTOMATIC);
   myPID.SetOutputLimits(0, 100);
   
-  pinMode(RF_TX_PIN, OUTPUT);
-  mySwitch.enableTransmit(RF_TX_PIN);
+   pinMode(relay, OUTPUT);
+ 
 }
 
 void loop() {
   if(i % 25000 == 0) temperature = readTemperature();
   //delay(20);
   
-  if(irrecv.decode(&irSignal)){
-    Serial.println(irSignal.value, HEX);
-    if(irSignal.value == 0x219EA05F){
-      setPoint += 0.5;
-    }
-    else if(irSignal.value == 0x219E00FF){
-      setPoint -= 0.5; 
-    }
-    irrecv.resume();
-  }
-     
+   
   if(i % 2500 == 0) myPID.Compute();
   if(i % 5000 == 0) updateDisplay();
   
@@ -74,10 +64,18 @@ void loop() {
 }
 
 float readTemperature() {
-  int reading = analogRead(TEMP_SENSOR_PIN);
-  float resistance = (float) (1023 - reading) * 10000 / reading; // get the resistance of the sensor
-  float temperature = 1 / (log(resistance / 10000) / B + 1 / 298.15) - 273.15; // convert to temperature
+ 
+
+  float temperature = dht.readTemperature();
+  if (isnan(temperature) ) {
+    Serial.println("Failed to read from DHT sensor!");
+    temperature = setPoint;
+    
+  }
+  
+  
   return temperature;
+  delay(4000);
 }
 
 void updateDisplay() {
@@ -94,28 +92,7 @@ void updateDisplay() {
     Serial.println(myPID.GetKi());
   }
   
-  lcd.setCursor(0, 0);
-  lcd.print("Temp Set  Power");
-  lcd.setCursor(0, 1);
-  //lcd.print("P   I     D     ");
-  
-  lcd.setCursor(0, 1);
-  lcd.print(temperature, 1);
-  lcd.setCursor(5, 1);
-  lcd.print(setPoint, 1);
-  lcd.setCursor(10, 1);
-  lcd.print(pidOutput, 0);
-  lcd.print("%");
-  
-//  lcd.setCursor(1, 1);
-//  lcd.print(KP, 0);
-//  lcd.setCursor(5, 1);
-//  lcd.print(KI, 2);
-//  lcd.setCursor(11, 1);
-//  lcd.print(KD, 0);
-  
-  lcd.setCursor(15, 1);
-  if(heaterOn) lcd.print("H");
+ 
 }
 
 void updateOutput() {
@@ -138,14 +115,16 @@ void updateOutput() {
   if(currentWindowPidOutput * windowSize > ((now - windowStartTime) * 100)) {
     if(!heaterOn){
       heaterOn = true;
-      //Serial.println("ON");
+      Serial.println("ON");
       setHeaterState(true);
+       digitalWrite(relay, HIGH);
     }
   }
   else if(heaterOn) {
     heaterOn = false;
-    //Serial.println("OFF");
+    Serial.println("OFF");
     setHeaterState(false);
+     digitalWrite(relay, LOW);
   }
   
   // Every 400 cycles (about 8 seconds) refresh the heater state
@@ -156,11 +135,6 @@ void updateOutput() {
 
 void setHeaterState(boolean on) {
   long code = WATTS_CLEVER_DEVICE_ID + (on ? ON_CODES[1] : OFF_CODES[1]);
-  sendCode(code);
+  //sendCode(code);
 }
 
-void sendCode(long code) {
-  digitalWrite(13, HIGH);
-  mySwitch.send(code, 24);
-  digitalWrite(13, LOW);
-}
